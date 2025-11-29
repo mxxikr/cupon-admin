@@ -1,34 +1,36 @@
 package com.mxxikr.couponadmin.domain;
 
-import com.mxxikr.couponadmin.common.FileConstants;
-import com.mxxikr.couponadmin.common.exception.BusinessException;
+import com.mxxikr.couponadmin.common.constants.FileConstants;
 import com.mxxikr.couponadmin.common.exception.ErrorCode;
+import com.mxxikr.couponadmin.common.exception.FileParsingException;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Excel 파일 파서 구현체
+ * 스트리밍 방식으로 처리하여 OOM 방지
  */
+@Component
 public class ExcelFileParser implements FileParser {
 
     @Override
-    public List<Long> parse(InputStream inputStream) throws Exception {
-        Workbook workbook = WorkbookFactory.create(inputStream);
-        Sheet sheet = workbook.getSheetAt(0);
+    public void parseStream(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
+        // try-with-resources로 Workbook을 자동으로 닫아 메모리 해제
+        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = workbook.getSheetAt(FileConstants.EXCEL_HEADER_ROW_INDEX);
 
-        validateHeader(sheet.getRow(0));
+            validateHeader(sheet.getRow(FileConstants.EXCEL_HEADER_ROW_INDEX));
 
-        List<Long> customerIds = extractCustomerIds(sheet);
-
-        if (customerIds.isEmpty()) {
-            throw new BusinessException(ErrorCode.EMPTY_CUSTOMER_LIST);
+            extractCustomerIds(sheet, customerIdConsumer);
+        } catch (FileParsingException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new FileParsingException(ErrorCode.FILE_PARSING_FAILED, e);
         }
-
-        return customerIds;
     }
 
     /**
@@ -37,33 +39,35 @@ public class ExcelFileParser implements FileParser {
      * @param headerRow 헤더 행
      */
     private void validateHeader(Row headerRow) {
-        if (headerRow == null || headerRow.getCell(0) == null || !Objects.equals(headerRow.getCell(0).getStringCellValue(), FileConstants.CUSTOMER_ID_HEADER)) {
-            throw new BusinessException(ErrorCode.INVALID_FILE_HEADER);
+        if (headerRow == null 
+                || headerRow.getCell(FileConstants.EXCEL_FIRST_COLUMN_INDEX) == null 
+                || !Objects.equals(
+                    headerRow.getCell(FileConstants.EXCEL_FIRST_COLUMN_INDEX).getStringCellValue(), 
+                    FileConstants.CUSTOMER_ID_HEADER)) {
+            throw new FileParsingException(ErrorCode.INVALID_FILE_HEADER);
         }
     }
 
     /**
-     * Excel 시트에서 고객 ID를 추출함
+     * Excel 시트에서 고객 ID를 스트리밍 방식으로 추출함
      * @param sheet Excel 시트
-     * @return 고객 ID 목록
+     * @param customerIdConsumer 각 고객 ID를 처리할 Consumer
      */
-    private List<Long> extractCustomerIds(Sheet sheet) {
-        List<Long> customerIds = new ArrayList<>();
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+    private void extractCustomerIds(Sheet sheet, Consumer<Long> customerIdConsumer) {
+        for (int i = FileConstants.EXCEL_FIRST_DATA_ROW_INDEX; i <= sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
             if (row != null) {
-                Cell cell = row.getCell(0);
+                Cell cell = row.getCell(FileConstants.EXCEL_FIRST_COLUMN_INDEX);
                 if (cell != null && cell.getCellType() == CellType.NUMERIC) {
-                    customerIds.add((long) cell.getNumericCellValue());
+                    customerIdConsumer.accept((long) cell.getNumericCellValue());
                 } else if (cell != null && cell.getCellType() == CellType.STRING) {
                     try {
-                        customerIds.add(Long.parseLong(cell.getStringCellValue()));
+                        customerIdConsumer.accept(Long.parseLong(cell.getStringCellValue()));
                     } catch (NumberFormatException e) {
                         // 숫자 형식으로 변환할 수 없는 문자열은 무시함
                     }
                 }
             }
         }
-        return customerIds;
     }
 }

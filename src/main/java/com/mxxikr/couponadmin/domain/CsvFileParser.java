@@ -1,45 +1,47 @@
 package com.mxxikr.couponadmin.domain;
 
-import com.mxxikr.couponadmin.common.FileConstants;
-import com.mxxikr.couponadmin.common.exception.BusinessException;
+import com.mxxikr.couponadmin.common.constants.FileConstants;
 import com.mxxikr.couponadmin.common.exception.ErrorCode;
+import com.mxxikr.couponadmin.common.exception.FileParsingException;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * CSV 파일 파서 구현체
+ * 스트리밍 방식으로 처리하여 OOM 방지
  */
+@Component
 public class CsvFileParser implements FileParser {
 
     @Override
-    public List<Long> parse(InputStream inputStream) throws IOException, CsvValidationException {
+    public void parseStream(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
         try (CSVReader reader = new CSVReader(new InputStreamReader(inputStream))) {
             String[] header = reader.readNext();
             validateHeader(header);
 
-            List<Long> customerIds = new ArrayList<>();
             String[] line;
             while ((line = reader.readNext()) != null) {
-                if (line.length > 0 && !line[0].trim().isEmpty()) {
+                if (line.length > FileConstants.CSV_FIRST_COLUMN_INDEX 
+                        && !line[FileConstants.CSV_FIRST_COLUMN_INDEX].trim().isEmpty()) {
                     try {
-                        customerIds.add(Long.parseLong(line[0].trim()));
+                        Long customerId = Long.parseLong(line[FileConstants.CSV_FIRST_COLUMN_INDEX].trim());
+                        customerIdConsumer.accept(customerId);
                     } catch (NumberFormatException e) {
                         // 숫자 형식으로 변환할 수 없는 값은 무시함
                     }
                 }
             }
-
-            if (customerIds.isEmpty()) {
-                throw new BusinessException(ErrorCode.EMPTY_CUSTOMER_LIST);
-            }
-            return customerIds;
+        } catch (FileParsingException e) {
+            throw e;
+        } catch (IOException | CsvValidationException e) {
+            throw new FileParsingException(ErrorCode.FILE_PARSING_FAILED, e);
         }
     }
 
@@ -48,8 +50,10 @@ public class CsvFileParser implements FileParser {
      * @param header 헤더 배열
      */
     private void validateHeader(String[] header) {
-        if (header == null || header.length == 0 || !Objects.equals(header[0], FileConstants.CUSTOMER_ID_HEADER)) {
-            throw new BusinessException(ErrorCode.INVALID_FILE_HEADER);
+        if (header == null 
+                || header.length == 0 
+                || !Objects.equals(header[FileConstants.CSV_FIRST_COLUMN_INDEX], FileConstants.CUSTOMER_ID_HEADER)) {
+            throw new FileParsingException(ErrorCode.INVALID_FILE_HEADER);
         }
     }
 }
