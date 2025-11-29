@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 구조화된 로깅을 위한 JSON Encoder -->
+    <springProfile name="prod">
+        <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/application.json</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp/>
+                    <version/>
+                    <logLevel/>
+                    <message/>
+                    <mdc/>
+                    <stackTrace/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "service": "coupon-admin",
+                                "thread": "%thread",
+                                "logger": "%logger{36}"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>logs/application-%d{yyyy-MM-dd}.json</fileNamePattern>
+                <maxHistory>30</maxHistory>
+            </rollingPolicy>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- 개발 환경: 일반 텍스트 로깅 -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- 비즈니스 로직 로깅 레벨 설정 -->
+    <logger name="com.mxxikr.couponadmin" level="INFO"/>
+    <logger name="com.mxxikr.couponadmin.application.event.CouponIssuanceEventHandler" level="DEBUG"/>
+    <logger name="com.mxxikr.couponadmin.application.CouponIssuanceService" level="DEBUG"/>
+    <logger name="com.mxxikr.couponadmin.application.FileUploadService" level="DEBUG"/>
+</configuration>
+
