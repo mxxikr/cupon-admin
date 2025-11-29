@@ -1,0 +1,431 @@
+{
+	"info": {
+		"_postman_id": "coupon-admin-api",
+		"name": "Coupon Admin API",
+		"description": "쿠폰 관리 시스템 ADMIN API 컬렉션\n\n모든 엔드포인트를 테스트할 수 있는 Postman 컬렉션입니다.\n\n**사용 방법:**\n1. Postman에서 Import 버튼 클릭\n2. 이 파일 선택\n3. 환경 변수 설정 (baseUrl: http://localhost:8080)\n\n**테스트 순서:**\n1. 파일 업로드 (쿠폰 발급 없음) 또는 쿠폰 발급 파일 업로드\n2. 작업 상태 조회 (비동기 처리인 경우)\n3. 파일 다운로드",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "파일 관리 API",
+			"item": [
+				{
+					"name": "파일 업로드 (쿠폰 발급 없음)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"fileId\", response.fileId);",
+									"    console.log(\"File ID 저장됨:\", response.fileId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "CSV 또는 Excel 파일 (헤더: customer_id)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/files/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"files",
+								"upload"
+							]
+						},
+						"description": "CSV 또는 Excel 형식의 사용자 목록 파일을 업로드함. 쿠폰 발급은 하지 않으며 파일만 저장함.\n\n**요청:**\n- file: CSV 또는 Excel 파일 (multipart/form-data)\n\n**응답:**\n- 201 Created: { \"fileId\": \"uuid\" }\n- 400 Bad Request: 파일 비어있음, 헤더 유효하지 않음 등\n\n**테스트 파일 예시 (CSV):**\n```\ncustomer_id\n11111\n22222\n33333\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "파일 업로드 및 다운로드 관련 API"
+		},
+		{
+			"name": "쿠폰 발급 API",
+			"item": [
+				{
+					"name": "쿠폰 발급 파일 업로드 (비동기)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"jobId\", response.jobId);",
+									"    console.log(\"Job ID 저장됨:\", response.jobId);",
+									"    console.log(\"상태 조회 API로 진행 상황을 확인하세요:\");",
+									"    console.log(\"GET {{baseUrl}}/api/coupon-issuances/jobs/\" + response.jobId + \"/status\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "CSV 또는 Excel 파일 (헤더: customer_id)"
+								},
+								{
+									"key": "couponName",
+									"value": "신규 가입 쿠폰",
+									"type": "text",
+									"description": "발급할 쿠폰의 이름"
+								},
+								{
+									"key": "expiresAt",
+									"value": "2025-12-31T23:59:59",
+									"type": "text",
+									"description": "쿠폰 만료일시 (ISO 8601 형식: yyyy-MM-dd'T'HH:mm:ss)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/coupon-issuances/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"coupon-issuances",
+								"upload"
+							]
+						},
+						"description": "CSV 또는 Excel 형식의 사용자 목록 파일을 업로드하여 쿠폰을 대량 발급함 (비동기 처리).\n\n**요청:**\n- file: CSV 또는 Excel 파일 (필수)\n- couponName: 쿠폰 이름 (필수, 최대 100자)\n- expiresAt: 쿠폰 만료일시 (ISO 8601 형식, 필수, 미래 날짜)\n\n**응답:**\n- 201 Created: { \"jobId\": \"uuid\" }\n- jobId를 사용하여 상태 조회 API로 진행 상황 확인 가능\n\n**Validation:**\n- file: 필수, null 불가\n- couponName: 필수, 공백 불가, 최대 100자\n- expiresAt: 필수, 미래 날짜여야 함\n\n**에러 응답 (400 Bad Request):**\n```json\n{\n    \"code\": \"C001\",\n    \"message\": \"잘못된 입력 값입니다\",\n    \"errors\": {\n        \"file\": \"파일은 필수입니다\",\n        \"couponName\": \"쿠폰명은 필수입니다\",\n        \"expiresAt\": \"만료일은 필수입니다\"\n    }\n}\n```\n\n**비동기 처리:**\n- 파일 업로드 후 즉시 jobId 반환\n- 쿠폰 발급은 백그라운드에서 비동기로 처리됨\n- 상태 조회 API로 PENDING → PROCESSING → COMPLETED/FAILED 확인"
+					},
+					"response": []
+				},
+				{
+					"name": "쿠폰 발급 작업 상태 조회",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log(\"작업 상태:\", response.status);",
+									"    console.log(\"처리된 쿠폰 수:\", response.totalProcessed);",
+									"    ",
+									"    if (response.status === 'COMPLETED') {",
+									"        console.log(\"작업 완료!\");",
+									"    } else if (response.status === 'FAILED') {",
+									"        console.log(\"작업 실패:\", response.errorMessage);",
+									"    } else {",
+									"        console.log(\"작업 진행 중...\");",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/coupon-issuances/jobs/{{jobId}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"coupon-issuances",
+								"jobs",
+								"{{jobId}}",
+								"status"
+							]
+						},
+						"description": "쿠폰 발급 작업의 현재 상태를 조회합니다.\n\n**요청:**\n- jobId: 쿠폰 발급 작업 ID (경로 변수)\n\n**응답:**\n- 200 OK: 작업 상태 정보\n  - status: PENDING, PROCESSING, COMPLETED, FAILED\n  - totalProcessed: 처리된 쿠폰 수 (완료 시)\n  - errorMessage: 오류 메시지 (실패 시)\n\n**사용 방법:**\n- 비동기 쿠폰 발급 요청 후 jobId를 받으면 이 API를 폴링하여 진행 상황 확인\n- 상태가 COMPLETED 또는 FAILED가 될 때까지 반복 호출"
+					},
+					"response": []
+				},
+				{
+					"name": "파일 다운로드",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    console.log(\"파일 다운로드 성공\");",
+									"    console.log(\"Content-Type:\", pm.response.headers.get(\"Content-Type\"));",
+									"    console.log(\"Content-Disposition:\", pm.response.headers.get(\"Content-Disposition\"));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/coupon-issuances/{{fileId}}/download",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"coupon-issuances",
+								"{{fileId}}",
+								"download"
+							]
+						},
+						"description": "업로드 시 반환된 파일 ID를 사용하여 원본 파일을 다운로드함 (스트리밍 방식).\n\n**요청:**\n- fileId: 파일 고유 ID (경로 변수)\n\n**응답:**\n- 200 OK: 파일 바이너리 데이터 (스트리밍)\n- Content-Type: application/octet-stream\n- Content-Disposition: attachment; filename=\"원본파일명\"\n\n**사용 방법:**\n- Postman에서는 \"Send and Download\" 버튼을 사용하여 파일 다운로드"
+					},
+					"response": []
+				},
+				{
+					"name": "Presigned URL 생성 (업로드용)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"presignedUploadUrl\", response.presignedUrl);",
+									"    pm.environment.set(\"fileKey\", response.fileKey);",
+									"    console.log(\"Presigned URL 생성됨:\", response.presignedUrl);",
+									"    console.log(\"File Key:\", response.fileKey);",
+									"    console.log(\"\\n이 URL을 사용하여 S3에 직접 업로드하세요:\");",
+									"    console.log(\"PUT \" + response.presignedUrl);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "fileName",
+									"value": "customers.csv",
+									"type": "text",
+									"description": "업로드할 파일명 (필수, 최대 255자)"
+								},
+								{
+									"key": "expirationMinutes",
+									"value": "60",
+									"type": "text",
+									"description": "URL 만료 시간 (분), 선택사항, 기본값: 60, 1~1440분 범위"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/coupon-issuances/presigned-url/upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"coupon-issuances",
+								"presigned-url",
+								"upload"
+							]
+						},
+						"description": "S3에 직접 업로드하기 위한 Presigned URL을 생성함.\n\n**요청:**\n- fileName: 업로드할 파일명 (필수, 최대 255자)\n- expirationMinutes: URL 만료 시간 (분, 선택사항, 기본값: 60, 1~1440분 범위)\n\n**응답:**\n- 200 OK: { \"presignedUrl\": \"https://...\", \"fileKey\": \"uuid_filename.csv\" }\n\n**Validation:**\n- fileName: 필수, 공백 불가, 최대 255자\n- expirationMinutes: 선택사항, 1~1440분 범위\n\n**사용 방법:**\n1. 이 API로 Presigned URL과 fileKey 받기\n2. 받은 Presigned URL에 PUT 요청으로 파일 업로드\n3. 업로드 완료 후 s3-upload-complete API 호출"
+					},
+					"response": []
+				},
+				{
+					"name": "S3 업로드 완료 후 처리 (비동기)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"jobId\", response.jobId);",
+									"    console.log(\"Job ID 저장됨:\", response.jobId);",
+									"    console.log(\"상태 조회 API로 진행 상황을 확인하세요:\");",
+									"    console.log(\"GET {{baseUrl}}/api/coupon-issuances/jobs/\" + response.jobId + \"/status\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "fileKey",
+									"value": "{{fileKey}}",
+									"type": "text",
+									"description": "S3에 저장된 파일의 키 (Presigned URL 생성 시 받은 fileKey)"
+								},
+								{
+									"key": "originalFileName",
+									"value": "customers.csv",
+									"type": "text",
+									"description": "원본 파일명"
+								},
+								{
+									"key": "couponName",
+									"value": "신규 가입 쿠폰",
+									"type": "text",
+									"description": "쿠폰 이름"
+								},
+								{
+									"key": "expiresAt",
+									"value": "2025-12-31T23:59:59",
+									"type": "text",
+									"description": "쿠폰 만료일시 (ISO 8601 형식)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/coupon-issuances/s3-upload-complete",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"coupon-issuances",
+								"s3-upload-complete"
+							]
+						},
+						"description": "클라이언트가 S3에 파일 업로드를 완료한 후 서버에서 파일을 파싱하여 쿠폰을 비동기로 발급함.\n\n**요청:**\n- fileKey: S3에 저장된 파일의 키 (Presigned URL 생성 시 받은 fileKey, 필수)\n- originalFileName: 원본 파일명 (필수, 최대 255자)\n- couponName: 쿠폰 이름 (필수, 최대 100자)\n- expiresAt: 쿠폰 만료일시 (ISO 8601 형식, 필수, 미래 날짜)\n\n**응답:**\n- 201 Created: { \"jobId\": \"uuid\" }\n\n**Validation:**\n- fileKey: 필수, 공백 불가\n- originalFileName: 필수, 공백 불가, 최대 255자\n- couponName: 필수, 공백 불가, 최대 100자\n- expiresAt: 필수, 미래 날짜여야 함\n\n**사용 방법:**\n1. Presigned URL 생성 API로 URL과 fileKey 받기\n2. Presigned URL에 PUT 요청으로 파일 업로드 (S3에 직접)\n3. 업로드 완료 후 이 API 호출\n4. jobId를 받으면 상태 조회 API로 진행 상황 확인"
+					},
+					"response": []
+				},
+				{
+					"name": "Presigned URL 생성 (다운로드용)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set(\"presignedDownloadUrl\", response.presignedUrl);",
+									"    console.log(\"Presigned URL 생성됨:\", response.presignedUrl);",
+									"    console.log(\"\\n이 URL을 사용하여 S3에서 직접 다운로드하세요:\");",
+									"    console.log(\"GET \" + response.presignedUrl);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/coupon-issuances/{{fileId}}/presigned-url/download?expirationMinutes=60",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"coupon-issuances",
+								"{{fileId}}",
+								"presigned-url",
+								"download"
+							],
+							"query": [
+								{
+									"key": "expirationMinutes",
+									"value": "60",
+									"description": "URL 만료 시간 (분), 기본값: 60"
+								}
+							]
+						},
+						"description": "S3에서 직접 다운로드하기 위한 Presigned URL을 생성함.\n\n**요청:**\n- fileId: 파일 고유 ID (경로 변수)\n- expirationMinutes: URL 만료 시간 (분, 선택사항, 기본값: 60)\n\n**응답:**\n- 200 OK: { \"presignedUrl\": \"https://...\", \"fileKey\": null }\n\n**사용 방법:**\n- 받은 Presigned URL에 GET 요청하여 파일 다운로드\n- 서버 부하 없이 클라이언트가 직접 S3에서 다운로드 가능"
+					},
+					"response": []
+				}
+			],
+			"description": "쿠폰 대량 발급 관련 API"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "fileId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "jobId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "fileKey",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "presignedUploadUrl",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "presignedDownloadUrl",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
