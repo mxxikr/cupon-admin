@@ -27,6 +27,12 @@ public enum ErrorCode {
     DIRECTORY_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "디렉토리 생성에 실패했습니다"),
     FILE_STORAGE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "파일 저장에 실패했습니다"),
     FILE_READ_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S003", "파일을 읽어오는 데 실패했습니다"),
+    UNSUPPORTED_OPERATION(HttpStatus.BAD_REQUEST, "S004", "지원하지 않는 작업입니다"),
+    INVALID_STORAGE_TYPE(HttpStatus.INTERNAL_SERVER_ERROR, "S005", "유효하지 않은 스토리지 타입입니다"),
+    INVALID_FILE_PARSER(HttpStatus.INTERNAL_SERVER_ERROR, "S006", "파일 파서를 찾을 수 없습니다"),
+    
+    // 작업 상태 에러
+    JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "J001", "요청한 작업을 찾을 수 없습니다"),
     ;
 
     private final HttpStatus httpStatus;
