@@ -24,6 +24,7 @@ repositories {
 dependencies {
     // Web & OpenAPI
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
 
     // JPA & H2 Database
@@ -34,6 +35,14 @@ dependencies {
     implementation 'org.apache.poi:poi:5.2.5'
     implementation 'org.apache.poi:poi-ooxml:5.2.5'
     implementation 'com.opencsv:opencsv:5.9'
+
+    // AWS S3 SDK
+    implementation 'software.amazon.awssdk:s3:2.20.0'
+    implementation 'software.amazon.awssdk:auth:2.20.0'
+    implementation 'software.amazon.awssdk:url-connection-client:2.20.0'
+
+    // 구조화된 로깅 (JSON 형식)
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
