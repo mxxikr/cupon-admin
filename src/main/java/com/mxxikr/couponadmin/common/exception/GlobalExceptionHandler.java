@@ -3,8 +3,13 @@ package com.mxxikr.couponadmin.common.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 애플리케이션 전역에서 발생하는 예외를 처리하는 핸들러
@@ -12,6 +17,32 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * Validation 에러를 처리함
+     * @param e 발생한 MethodArgumentNotValidException
+     * @return ErrorResponse를 포함한 ResponseEntity
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+        log.warn("Validation failed: {}", e.getMessage());
+        
+        Map<String, String> errors = new HashMap<>();
+        e.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = error instanceof FieldError 
+                    ? ((FieldError) error).getField() 
+                    : error.getObjectName();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        final ErrorResponse response = ErrorResponse.builder()
+                .code(ErrorCode.INVALID_INPUT_VALUE.getCode())
+                .message(ErrorCode.INVALID_INPUT_VALUE.getMessage())
+                .errors(errors)
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
 
     /**
      * BusinessException 타입의 예외를 처리함
