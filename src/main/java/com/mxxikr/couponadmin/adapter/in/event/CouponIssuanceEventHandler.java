@@ -13,10 +13,11 @@ import com.mxxikr.couponadmin.domain.Coupon;
 import com.mxxikr.couponadmin.domain.event.CouponIssuanceRequestEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -42,7 +43,7 @@ public class CouponIssuanceEventHandler {
      * 쿠폰 발급 요청 이벤트를 처리함
      */
     @Async("couponIssuanceExecutor")
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional
     public void handleCouponIssuanceRequest(CouponIssuanceRequestEvent event) {
         CouponIssuanceJob job = jobRepository.findById(event.jobId())
