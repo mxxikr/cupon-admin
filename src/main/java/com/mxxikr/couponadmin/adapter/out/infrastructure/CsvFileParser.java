@@ -1,5 +1,7 @@
-package com.mxxikr.couponadmin.domain;
+package com.mxxikr.couponadmin.adapter.out.infrastructure;
 
+import com.mxxikr.couponadmin.application.port.out.FileParserPort;
+import com.mxxikr.couponadmin.common.FileType;
 import com.mxxikr.couponadmin.common.constants.FileConstants;
 import com.mxxikr.couponadmin.common.exception.ErrorCode;
 import com.mxxikr.couponadmin.common.exception.FileParsingException;
@@ -18,10 +20,10 @@ import java.util.function.Consumer;
  * 스트리밍 방식으로 처리하여 OOM 방지
  */
 @Component
-public class CsvFileParser implements FileParser {
+public class CsvFileParser implements FileParserPort {
 
     @Override
-    public void parseStream(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
+    public void parse(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
         try (CSVReader reader = new CSVReader(new InputStreamReader(inputStream))) {
             String[] header = reader.readNext();
             validateHeader(header);
@@ -43,6 +45,11 @@ public class CsvFileParser implements FileParser {
         } catch (IOException | CsvValidationException e) {
             throw new FileParsingException(ErrorCode.FILE_PARSING_FAILED, e);
         }
+    }
+
+    @Override
+    public boolean supports(FileType fileType) {
+        return fileType == FileType.CSV;
     }
 
     /**

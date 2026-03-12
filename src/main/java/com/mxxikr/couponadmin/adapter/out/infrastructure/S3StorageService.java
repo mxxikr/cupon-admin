@@ -1,4 +1,4 @@
-package com.mxxikr.couponadmin.infrastructure;
+package com.mxxikr.couponadmin.adapter.out.infrastructure;
 
 import com.mxxikr.couponadmin.application.port.out.StorageService;
 import com.mxxikr.couponadmin.common.constants.StorageConstants;
@@ -94,8 +94,6 @@ public class S3StorageService implements StorageService {
                 .credentialsProvider(StaticCredentialsProvider.create(credentials));
         if (!endpointUrl.isEmpty()) {
             presignerBuilder.endpointOverride(java.net.URI.create(endpointUrl));
-            // S3Presigner는 forcePathStyle을 직접 지원하지 않지만,
-            // endpointOverride 설정으로 LocalStack과 호환됨
         }
         this.s3Presigner = presignerBuilder.build();
 
@@ -112,6 +110,7 @@ public class S3StorageService implements StorageService {
                     .bucket(bucketName)
                     .build();
             s3Client.headBucket(headBucketRequest);
+
             log.debug("S3 버킷 확인 완료: bucketName={}", bucketName);
         } catch (NoSuchBucketException e) {
             // 버킷 없으면 생성
@@ -121,6 +120,7 @@ public class S3StorageService implements StorageService {
                         .bucket(bucketName)
                         .build();
                 s3Client.createBucket(createBucketRequest);
+
                 log.info("S3 버킷 생성 완료: bucketName={}", bucketName);
             } catch (Exception ex) {
                 log.error("S3 버킷 생성 실패: bucketName={}, error={}", bucketName, ex.getMessage(), ex);
@@ -172,8 +172,6 @@ public class S3StorageService implements StorageService {
     
     /**
      * GetObjectRequest를 빌드함
-     * @param fileKey 파일 키
-     * @return GetObjectRequest
      */
     private GetObjectRequest buildGetObjectRequest(String fileKey) {
         return GetObjectRequest.builder()
@@ -227,8 +225,6 @@ public class S3StorageService implements StorageService {
 
     /**
      * 파일 키를 생성함
-     * @param originalFileName 원본 파일명
-     * @return 생성된 파일 키
      */
     private String generateFileKey(String originalFileName) {
         String uuid = UUID.randomUUID().toString();

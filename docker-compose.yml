@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  localstack:
+    image: localstack/localstack:3.0.0
+    ports:
+      - "4566:4566" # LocalStack 서비스 포트
+    environment:
+      - SERVICES=s3 # S3 서비스만 사용하도록 설정
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "./localstack:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"

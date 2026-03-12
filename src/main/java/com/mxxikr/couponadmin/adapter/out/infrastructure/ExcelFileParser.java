@@ -1,5 +1,7 @@
-package com.mxxikr.couponadmin.domain;
+package com.mxxikr.couponadmin.adapter.out.infrastructure;
 
+import com.mxxikr.couponadmin.application.port.out.FileParserPort;
+import com.mxxikr.couponadmin.common.FileType;
 import com.mxxikr.couponadmin.common.constants.FileConstants;
 import com.mxxikr.couponadmin.common.exception.ErrorCode;
 import com.mxxikr.couponadmin.common.exception.FileParsingException;
@@ -15,10 +17,10 @@ import java.util.function.Consumer;
  * 스트리밍 방식으로 처리하여 OOM 방지
  */
 @Component
-public class ExcelFileParser implements FileParser {
+public class ExcelFileParser implements FileParserPort {
 
     @Override
-    public void parseStream(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
+    public void parse(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
         // try-with-resources로 Workbook을 자동으로 닫아 메모리 해제
         try (Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = workbook.getSheetAt(FileConstants.EXCEL_HEADER_ROW_INDEX);
@@ -31,6 +33,11 @@ public class ExcelFileParser implements FileParser {
         } catch (Exception e) {
             throw new FileParsingException(ErrorCode.FILE_PARSING_FAILED, e);
         }
+    }
+
+    @Override
+    public boolean supports(FileType fileType) {
+        return fileType == FileType.XLS || fileType == FileType.XLSX;
     }
 
     /**

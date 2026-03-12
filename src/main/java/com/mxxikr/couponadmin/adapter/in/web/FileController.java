@@ -1,7 +1,7 @@
-package com.mxxikr.couponadmin.controller;
+package com.mxxikr.couponadmin.adapter.in.web;
 
 import com.mxxikr.couponadmin.application.FileUploadService;
-import com.mxxikr.couponadmin.dto.UploadResponseDTO;
+import com.mxxikr.couponadmin.dto.CouponIssuanceResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +25,11 @@ public class FileController {
 
     @Operation(
             summary = "파일 업로드 (쿠폰 발급 없음)",
-            description = "CSV 또는 Excel 형식의 사용자 목록 파일을 업로드함. 쿠폰 발급은 하지 않으며 파일만 저장함."
+            description = "CSV 또는 Excel 형식의 사용자 목록 파일을 업로드함(쿠폰 발급은 하지 않으며 파일만 저장힘)"
     )
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UploadResponseDTO> uploadFile(
-            @RequestParam("file") MultipartFile file) {
+    public ResponseEntity<CouponIssuanceResponseDTO> uploadFile(@RequestParam("file") MultipartFile file) {
         String fileId = fileUploadService.uploadFile(file);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new UploadResponseDTO(fileId));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new CouponIssuanceResponseDTO(fileId));
     }
 }
-
