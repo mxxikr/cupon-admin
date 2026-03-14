@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -96,6 +97,30 @@ public class CouponIssuanceService {
     public URL generateDownloadPresignedUrl(String fileId, int expirationMinutes) {
         CouponIssuanceFileMetadata metadata = findMetadataById(fileId);
         return storageService.generateDownloadPresignedUrl(metadata.getStoredFilePath(), expirationMinutes);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public CouponIssuanceJob startJob(String jobId) {
+        CouponIssuanceJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_NOT_FOUND));
+        job.startProcessing();
+        return jobRepository.save(job);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void completeJob(String jobId, long processedCount) {
+        CouponIssuanceJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_NOT_FOUND));
+        job.complete(processedCount);
+        jobRepository.save(job);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void failJob(String jobId, String errorMessage) {
+        CouponIssuanceJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_NOT_FOUND));
+        job.fail(errorMessage);
+        jobRepository.save(job);
     }
 
     @Transactional(readOnly = true)

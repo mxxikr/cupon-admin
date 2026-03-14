@@ -1,5 +1,6 @@
 package com.mxxikr.couponadmin.adapter.out.infrastructure;
 
+import com.github.pjfanning.xlsx.StreamingReader;
 import com.mxxikr.couponadmin.application.port.out.FileParserPort;
 import com.mxxikr.couponadmin.common.FileType;
 import com.mxxikr.couponadmin.common.constants.FileConstants;
@@ -21,8 +22,11 @@ public class ExcelFileParser implements FileParserPort {
 
     @Override
     public void parse(InputStream inputStream, Consumer<Long> customerIdConsumer) throws FileParsingException {
-        // try-with-resources로 Workbook을 자동으로 닫아 메모리 해제
-        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+        // StreamingReader를 사용하여 대용량 엑셀을 메모리 적재 없이 파싱
+        try (Workbook workbook = StreamingReader.builder()
+                .rowCacheSize(100)    // 메모리에 유지할 행 수
+                .bufferSize(4096)     // 읽기 버퍼 크기
+                .open(inputStream)) {
             Sheet sheet = workbook.getSheetAt(FileConstants.EXCEL_HEADER_ROW_INDEX);
 
             validateHeader(sheet.getRow(FileConstants.EXCEL_HEADER_ROW_INDEX));

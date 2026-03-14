@@ -1,13 +1,12 @@
 package com.mxxikr.couponadmin.adapter.in.event;
 
+import com.mxxikr.couponadmin.application.CouponIssuanceService;
 import com.mxxikr.couponadmin.application.CouponService;
 import com.mxxikr.couponadmin.application.FileUploadService;
 import com.mxxikr.couponadmin.application.port.out.CouponIssuanceFileMetadataRepository;
-import com.mxxikr.couponadmin.application.port.out.CouponIssuanceJobRepository;
 import com.mxxikr.couponadmin.application.port.out.StorageService;
 import com.mxxikr.couponadmin.common.exception.BusinessException;
 import com.mxxikr.couponadmin.common.exception.ErrorCode;
-import com.mxxikr.couponadmin.domain.CouponIssuanceJob;
 import com.mxxikr.couponadmin.domain.CouponIssuanceFileMetadata;
 import com.mxxikr.couponadmin.domain.Coupon;
 import com.mxxikr.couponadmin.domain.event.CouponIssuanceRequestEvent;
@@ -33,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequiredArgsConstructor
 public class CouponIssuanceEventHandler {
 
-    private final CouponIssuanceJobRepository jobRepository;
+    private final CouponIssuanceService jobService;
     private final CouponIssuanceFileMetadataRepository metadataRepository;
     private final StorageService storageService;
     private final FileUploadService fileUploadService;
@@ -46,16 +45,12 @@ public class CouponIssuanceEventHandler {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional
     public void handleCouponIssuanceRequest(CouponIssuanceRequestEvent event) {
-        CouponIssuanceJob job = jobRepository.findById(event.jobId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_NOT_FOUND));
-
         try {
             log.info("쿠폰 발급 작업 시작: jobId={}, fileId={}, fileName={}, couponName={}", 
-                    job.getJobId(), event.fileId(), event.fileName(), event.couponName());
+                    event.jobId(), event.fileId(), event.fileName(), event.couponName());
             
-            // 작업 상태를 처리 중으로 변경
-            job.startProcessing();
-            jobRepository.save(job);
+            // 작업 상태를 처리 중으로 변경 (별도 트랜잭션)
+            jobService.startJob(event.jobId());
 
             // 파일 메타데이터 조회
             CouponIssuanceFileMetadata metadata = metadataRepository.findById(event.fileId())
@@ -85,24 +80,21 @@ public class CouponIssuanceEventHandler {
                 couponService.saveRemainingBatch(batch);
             }
 
-            // 작업 완료 처리
-            job.complete(processedCount.get());
-            jobRepository.save(job);
+            // 작업 완료 처리 (별도 트랜잭션)
+            jobService.completeJob(event.jobId(), processedCount.get());
             
             log.info("쿠폰 발급 작업 완료: jobId={}, processedCount={}", 
-                    job.getJobId(), processedCount.get());
+                    event.jobId(), processedCount.get());
 
         } catch (BusinessException e) {
             log.error("쿠폰 발급 작업 실패: jobId={}, errorCode={}, error={}", 
-                    job.getJobId(), e.getErrorCode().getCode(), e.getMessage(), e);
-            job.fail(e.getMessage());
-            jobRepository.save(job);
+                    event.jobId(), e.getErrorCode().getCode(), e.getMessage(), e);
+            jobService.failJob(event.jobId(), e.getMessage());
             throw e;
         } catch (Exception e) {
             log.error("쿠폰 발급 작업 중 예상치 못한 오류 발생: jobId={}", 
-                    job.getJobId(), e);
-            job.fail("처리 중 오류가 발생했습니다: " + e.getMessage());
-            jobRepository.save(job);
+                    event.jobId(), e);
+            jobService.failJob(event.jobId(), "처리 중 오류가 발생했습니다: " + e.getMessage());
             throw new BusinessException(ErrorCode.FILE_PARSING_FAILED, e);
         }
     }

@@ -74,7 +74,6 @@ public class CouponIssuanceJob {
 
     /**
      * 작업을 완료 상태로 변경
-     * @param totalProcessed 처리된 쿠폰 수
      */
     public void complete(Long totalProcessed) {
         this.status = JobStatus.COMPLETED;
@@ -83,7 +82,6 @@ public class CouponIssuanceJob {
 
     /**
      * 작업을 실패 상태로 변경
-     * @param errorMessage 오류 메시지
      */
     public void fail(String errorMessage) {
         this.status = JobStatus.FAILED;
